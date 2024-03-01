@@ -131,24 +131,35 @@ function renderGalleryImages(images) {
   renderCount++;
 }
 
-function loadMorePics(event) {
+async function loadMorePics(event) {
   pageNum++;
-  getImages(currentQuery, 15, pageNum).then(response => {
+  try {
+    const response = await getImages(currentQuery, 15, pageNum);
+    renderGalleryImages(response.hits); // Рендеримо зображення
+
     const totalHits = response.totalHits || 0;
-    const currentHits = pageNum * 15;
-    if (currentHits >= totalHits) {
-      loadMore.classList.add('is-hidden'); // Hide btn "Load More"
-      iziToast.warning({
+    const totalPages = Math.ceil(totalHits / 15); // Розраховуємо загальну кількість сторінок
+    if (pageNum >= totalPages) {
+      loadMore.classList.add('is-hidden'); // Ховаємо кнопку "Load More", якщо це остання сторінка
+      iziToast.info({
         title: 'Info',
         message: `We're sorry, but you've reached the end of search results.`,
-        backgroundColor: 'orange',
+        backgroundColor: '#4CAF50',
         messageColor: '#fff',
         titleColor: '#fff',
-        progressBarColor: 'dark orange',
+        progressBarColor: '#4CAF50',
         position: 'topRight',
       });
-    } else {
-      renderGalleryImages(response.hits); //call func and give response
     }
-  });
+  } catch (error) {
+    iziToast.error({
+      title: 'Error',
+      message: `${error.message || 'Something went wrong'}`,
+      backgroundColor: '#EF4040',
+      messageColor: '#fff',
+      titleColor: '#fff',
+      progressBarColor: '#B51B1B',
+      position: 'topRight',
+    });
+  }
 }
