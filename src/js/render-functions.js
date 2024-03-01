@@ -5,16 +5,22 @@ import 'simplelightbox/dist/simple-lightbox.min.css';
 import { getImages } from './pixabay-api';
 
 const gallery = document.querySelector('.gallery');
-const form = document.querySelector('.search-form');
-const loader = document.querySelector('.loader');
+const form = document.querySelector('.search-form'); //look for form
+const loader = document.querySelector('.loader'); // btn for loading more images
+const loadMore = document.querySelector('.load-more');
+let inputValue = ''; //for reusing search to get more pics rendering by btn load more
+let pageNum;
+let currentQuery;
 
 form.addEventListener('submit', imageFetch);
+loadMore.addEventListener('click', loadMorePics);
+loadMore.classList.add('is-hidden');
 
 function imageFetch(event) {
   event.preventDefault();
   gallery.innerHTML = '';
   loader.classList.remove('is-hidden');
-  const inputValue = event.currentTarget.elements.search.value.trim();
+  inputValue = event.currentTarget.elements.search.value.trim(); //current value-first render
 
   if (inputValue === '') {
     iziToast.error({
@@ -31,15 +37,19 @@ function imageFetch(event) {
   }
   loader.classList.remove('is-hidden');
 
-  getImages(inputValue)
+  getImages(inputValue, 15, 1)
     .then(response => {
       if (response.hits.length === 0) {
         throw new Error('No images found');
       }
-      renderGalleryImages(response.hits);
-      event.target.reset();
+      renderGalleryImages(response.hits); //call func and give response
+      currentQuery = inputValue;
+      pageNum = 1;
+      loadMore.classList.remove('is-hidden');
+      event.target.reset(); //reset input
     })
     .catch(error => {
+      loadMore.classList.add('is-hidden');
       iziToast.error({
         title: 'Error',
         message: `${error.message || 'Something went wrong'}`,
@@ -49,6 +59,7 @@ function imageFetch(event) {
         progressBarColor: '#B51B1B',
         position: 'topRight',
       });
+      loadMore.classList.add('is-hidden');
     })
     .finally(() => {
       loader.classList.add('is-hidden');
@@ -61,6 +72,8 @@ const lightbox = new SimpleLightbox('.gallery-item a', {
   captionPosition: 'bottom',
 });
 
+let renderCount = 0;
+// rendering images
 function renderGalleryImages(images) {
   const html = images
     .map(
@@ -102,7 +115,40 @@ function renderGalleryImages(images) {
     </li>`
     )
     .join('');
+  //scrolling from 2 render
 
-  gallery.innerHTML = html;
+  gallery.insertAdjacentHTML('beforeend', html);
   lightbox.refresh();
+  //scrolling
+  if (renderCount >= 1) {
+    // get height of 1 card
+    const galleryItemHeight = document
+      .querySelector('.gallery-item')
+      .getBoundingClientRect().height;
+    // smooth scrolling on height*2
+    window.scrollBy({ top: galleryItemHeight * 2, behavior: 'smooth' });
+  }
+  renderCount++;
+}
+
+function loadMorePics(event) {
+  pageNum++;
+  getImages(currentQuery, 15, pageNum).then(response => {
+    const totalHits = response.totalHits || 0;
+    const currentHits = pageNum * 15;
+    if (currentHits >= totalHits) {
+      loadMore.classList.add('is-hidden'); // Hide btn "Load More"
+      iziToast.warning({
+        title: 'Info',
+        message: `We're sorry, but you've reached the end of search results.`,
+        backgroundColor: 'orange',
+        messageColor: '#fff',
+        titleColor: '#fff',
+        progressBarColor: 'dark orange',
+        position: 'topRight',
+      });
+    } else {
+      renderGalleryImages(response.hits); //call func and give response
+    }
+  });
 }
